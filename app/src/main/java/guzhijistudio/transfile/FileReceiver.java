@@ -14,6 +14,7 @@ public class FileReceiver extends Thread {
         void onFile(String filename);
         void onMsg(String msg);
         void onError(String msg);
+        void onProgress(long received, long total);
     }
 
     private final ServerSocket socket;
@@ -58,7 +59,12 @@ public class FileReceiver extends Thread {
                                 String cmd = SocketUtils.readString(is, buf);
                                 if (!cmd.isEmpty()) {
                                     if ("file".equalsIgnoreCase(cmd)) {
-                                        String f = SocketUtils.readFile(is, buf, dir);
+                                        String f = SocketUtils.readFile(is, buf, dir, new SocketUtils.Progress() {
+                                            @Override
+                                            public void onProgress(long progress, long total) {
+                                                listener.onProgress(progress, total);
+                                            }
+                                        });
                                         if (f == null)
                                             listener.onError("文件接收失败");
                                         else

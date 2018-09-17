@@ -12,6 +12,7 @@ public class FileSender extends Thread {
     public interface FileSenderListener {
         void onFileSent(String filename);
         void onError(String msg);
+        void onProgress(long sent, long total);
     }
 
     private final String ip;
@@ -36,7 +37,12 @@ public class FileSender extends Thread {
                 OutputStream os = socket.getOutputStream();
                 try {
                     SocketUtils.writeString(os, "file");
-                    SocketUtils.writeFile(os, buf, filename);
+                    SocketUtils.writeFile(os, buf, filename, new SocketUtils.Progress() {
+                        @Override
+                        public void onProgress(long progress, long total) {
+                            listener.onProgress(progress, total);
+                        }
+                    });
                     File f = new File(filename);
                     listener.onFileSent(f.getName());
                     SocketUtils.writeString(os, "close");

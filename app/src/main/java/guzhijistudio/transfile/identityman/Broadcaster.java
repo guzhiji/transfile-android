@@ -10,7 +10,7 @@ public class Broadcaster extends Thread {
     private final SocketAddress groupAddr;
     private final String name;
     private boolean running = false;
-    public Broadcaster(String name, SocketAddress groupAddr) throws SocketException {
+    public Broadcaster(String name, SocketAddress groupAddr) {
         this.name = name;
         this.groupAddr = groupAddr;
     }
@@ -26,6 +26,8 @@ public class Broadcaster extends Thread {
     public void run() {
         byte[] data = new byte[256];
         try {
+            // MulticastSocket socket = new MulticastSocket();
+            // socket.setTimeToLive(64);
             DatagramSocket socket = new DatagramSocket();
             // socket.connect(groupAddr);
             while (running) {

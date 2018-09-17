@@ -1,6 +1,7 @@
 package guzhijistudio.transfile;
 
 import android.Manifest;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -17,10 +18,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
 import guzhijistudio.transfile.identityman.Broadcaster;
 import guzhijistudio.transfile.identityman.UdpServer;
 
@@ -119,6 +117,7 @@ public class DeviceListActivity extends AppCompatActivity {
     private FileReceiver fileReceiver;
     private UdpServer server;
     private Broadcaster broadcaster;
+    private Dialog progressDialog;
     private String selectedDeviceIp = null;
 
     @Override
@@ -131,10 +130,20 @@ public class DeviceListActivity extends AppCompatActivity {
         final ListView deviceListView = findViewById(R.id.deviceListView);
         deviceListView.setAdapter(new DevicesListAdaptor());
 
+        progressDialog = new Dialog(this, R.style.ShadedDialog);
+        progressDialog.setContentView(R.layout.dialog_progress);
+        progressDialog.setCancelable(false);
+
         FileReceiver.FileReceiverListener frListener = new FileReceiver.FileReceiverListener() {
             @Override
             public void onFile(final String filename) {
-                showMessageFromThread(filename + " received successfully");
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (progressDialog.isShowing()) progressDialog.dismiss();
+                        Toast.makeText(getApplicationContext(), filename + " received successfully", Toast.LENGTH_LONG).show();
+                    }
+                });
             }
 
             @Override
@@ -143,8 +152,29 @@ public class DeviceListActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onError(String msg) {
-                showMessageFromThread(msg);
+            public void onError(final String msg) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (progressDialog.isShowing()) progressDialog.dismiss();
+                        Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onProgress(final long received, final long total) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!progressDialog.isShowing()) progressDialog.show();
+                        ProgressBar bar = progressDialog.findViewById(R.id.progressBar);
+                        bar.setMax(10000);
+                        bar.setProgress((int) (10000.0 * received / total));
+//                        TextView txt = progressDialog.findViewById(R.id.textView);
+//                        txt.setText(Math.round(10000.0f * received / total) / 100.0 + "%");
+                    }
+                });
             }
         };
 
@@ -201,14 +231,10 @@ public class DeviceListActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            String deviceName = getIntent().getStringExtra("device_name");
-            SocketAddress groupAddr = new InetSocketAddress("224.0.0.255", 8888);
-            broadcaster = new Broadcaster(deviceName, groupAddr);
-            broadcaster.start();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
+        String deviceName = getIntent().getStringExtra("device_name");
+        SocketAddress groupAddr = new InetSocketAddress("224.0.0.255", 8888);
+        broadcaster = new Broadcaster(deviceName, groupAddr);
+        broadcaster.start();
         try {
             SocketAddress addr = new InetSocketAddress("0.0.0.0", 8888);
             InetAddress group = InetAddress.getByName("224.0.0.255");
@@ -289,15 +315,42 @@ public class DeviceListActivity extends AppCompatActivity {
                     if (uri != null) {
                         String filepath = getPath(getApplicationContext(), uri);
                         if (filepath != null) {
+                            progressDialog.show();
                             FileSender.FileSenderListener listener = new FileSender.FileSenderListener() {
                                 @Override
                                 public void onFileSent(final String filename) {
-                                    showMessageFromThread(filename + " sent successfully");
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            progressDialog.dismiss();
+                                            Toast.makeText(getApplicationContext(), filename + " sent successfully", Toast.LENGTH_LONG).show();
+                                        }
+                                    });
                                 }
 
                                 @Override
                                 public void onError(final String msg) {
-                                    showMessageFromThread(msg);
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            progressDialog.dismiss();
+                                            Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onProgress(final long sent, final long total) {
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ProgressBar bar = progressDialog.findViewById(R.id.progressBar);
+                                            bar.setMax(10000);
+                                            bar.setProgress((int) (10000.0 * sent / total));
+//                                            TextView txt = progressDialog.findViewById(R.id.textView);
+//                                            txt.setText(Math.round(10000.0f * sent / total) / 100.0 + "%");
+                                        }
+                                    });
                                 }
                             };
                             new FileSender(selectedDeviceIp, 8889, filepath, listener).start();

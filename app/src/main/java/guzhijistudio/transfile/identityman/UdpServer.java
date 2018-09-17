@@ -38,6 +38,7 @@ public class UdpServer extends Thread {
 
     public UdpServer(SocketAddress addr, InetAddress group, UdpServerListener listener) throws IOException {
         this.socket = new MulticastSocket(addr);
+        // this.socket.setTimeToLive(64);
         this.socket.joinGroup(group);
         this.listener = listener;
     }
