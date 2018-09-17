@@ -4,6 +4,10 @@ import java.io.*;
 
 public final class SocketUtils {
 
+    public interface Progress {
+        void onProgress(long progress, long total);
+    }
+
     public static class BufPos {
         private int pos;
 
@@ -244,7 +248,11 @@ public final class SocketUtils {
     }
 
     public static void readData(InputStream src, byte[] buf, OutputStream dest) throws IOException {
-        long len = readInt64(src);
+        readData(src, buf, dest, null);
+    }
+
+    public static void readData(InputStream src, byte[] buf, OutputStream dest, Progress pg) throws IOException {
+        long len = readInt64(src), t = System.currentTimeMillis();
         long received = 0, d;
         int r;
         do {
@@ -253,11 +261,20 @@ public final class SocketUtils {
             if (r > 0) {
                 dest.write(buf, 0, r);
                 received += r;
+                if (pg != null && System.currentTimeMillis() - t > 500) {
+                    pg.onProgress(received, len);
+                    t = System.currentTimeMillis();
+                }
             }
         } while (r >= 0 && received < len);
+        if (pg != null) pg.onProgress(received, len);
     }
 
     public static String readFile(InputStream src, byte[] buf, File dir) throws IOException {
+        return readFile(src, buf, dir, null);
+    }
+
+    public static String readFile(InputStream src, byte[] buf, File dir, Progress pg) throws IOException {
         String filename = readString(src, buf);
         if (filename == null || filename.isEmpty()) {
             return null;
@@ -268,7 +285,7 @@ public final class SocketUtils {
         if (file.exists() || file.createNewFile()) {
             FileOutputStream dest = new FileOutputStream(file);
             try {
-                readData(src, buf, dest);
+                readData(src, buf, dest, pg);
             } finally {
                 dest.close();
             }
@@ -279,19 +296,30 @@ public final class SocketUtils {
     }
 
     public static void writeFile(OutputStream dest, byte[] buf, String filename) throws IOException {
+        writeFile(dest, buf, filename, null);
+    }
+
+    public static void writeFile(OutputStream dest, byte[] buf, String filename, Progress pg) throws IOException {
         File file = new File(filename);
         if (file.exists()) {
             writeString(dest, file.getName());
             writeInt64(dest, file.length());
+            long t = System.currentTimeMillis(), sent = 0;
+            int r;
             FileInputStream fis = new FileInputStream(file);
             try {
-                int r;
                 do {
                     r = fis.read(buf);
                     if (r > 0) {
                         dest.write(buf, 0, r);
+                        sent += r;
+                        if (pg != null && System.currentTimeMillis() - t > 500) {
+                            pg.onProgress(sent, file.length());
+                            t = System.currentTimeMillis();
+                        }
                     }
                 } while (r >= 0);
+                if (pg != null) pg.onProgress(sent, file.length());
             } finally {
                 fis.close();
             }
