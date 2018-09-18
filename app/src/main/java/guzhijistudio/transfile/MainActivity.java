@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "Please enter device name.", Toast.LENGTH_LONG).show();
                     nameEdit.requestFocus();
                 } else {
-                    Intent i = new Intent(MainActivity.this, DeviceListActivity.class);
+                    Intent i = new Intent(MainActivity.this, FileListActivity.class);
                     i.putExtra("device_name", nameEdit.getText().toString());
                     startActivity(i);
                 }

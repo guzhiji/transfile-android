@@ -11,10 +11,11 @@ import java.net.Socket;
 public class FileReceiver extends Thread {
 
     public interface FileReceiverListener {
-        void onFile(String filename);
+        void onFileReceived(File file);
+        void onFile(File file);
         void onMsg(String msg);
         void onError(String msg);
-        void onProgress(long received, long total);
+        void onProgress(File file, long received, long total);
     }
 
     private final ServerSocket socket;
@@ -61,14 +62,22 @@ public class FileReceiver extends Thread {
                                     if ("file".equalsIgnoreCase(cmd)) {
                                         String f = SocketUtils.readFile(is, buf, dir, new SocketUtils.Progress() {
                                             @Override
-                                            public void onProgress(long progress, long total) {
-                                                listener.onProgress(progress, total);
+                                            public void onStart(File file) {
+                                                listener.onFile(file);
+                                            }
+
+                                            @Override
+                                            public void onFinish(File file) {
+                                                listener.onFileReceived(file);
+                                            }
+
+                                            @Override
+                                            public void onProgress(File file, long progress, long total) {
+                                                listener.onProgress(file, progress, total);
                                             }
                                         });
                                         if (f == null)
                                             listener.onError("文件接收失败");
-                                        else
-                                            listener.onFile(f);
                                     } else if ("msg".equalsIgnoreCase(cmd)) {
                                         String m = SocketUtils.readString(is, buf);
                                         if (m.isEmpty())

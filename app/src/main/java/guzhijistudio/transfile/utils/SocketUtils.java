@@ -5,7 +5,9 @@ import java.io.*;
 public final class SocketUtils {
 
     public interface Progress {
-        void onProgress(long progress, long total);
+        void onStart(File file);
+        void onFinish(File file);
+        void onProgress(File file, long progress, long total);
     }
 
     public static class BufPos {
@@ -252,6 +254,10 @@ public final class SocketUtils {
     }
 
     public static void readData(InputStream src, byte[] buf, OutputStream dest, Progress pg) throws IOException {
+        readData(src, buf, dest, pg, null);
+    }
+
+    public static void readData(InputStream src, byte[] buf, OutputStream dest, Progress pg, File relevantFile) throws IOException {
         long len = readInt64(src), t = System.currentTimeMillis();
         long received = 0, d;
         int r;
@@ -262,12 +268,12 @@ public final class SocketUtils {
                 dest.write(buf, 0, r);
                 received += r;
                 if (pg != null && System.currentTimeMillis() - t > 500) {
-                    pg.onProgress(received, len);
+                    pg.onProgress(relevantFile, received, len);
                     t = System.currentTimeMillis();
                 }
             }
         } while (r >= 0 && received < len);
-        if (pg != null) pg.onProgress(received, len);
+        if (pg != null) pg.onProgress(relevantFile, received, len);
     }
 
     public static String readFile(InputStream src, byte[] buf, File dir) throws IOException {
@@ -280,14 +286,14 @@ public final class SocketUtils {
             return null;
         }
         File file = new File(dir, filename);
-        // Log.i("filerec", filename);
-        // Log.i("filerec", file.getName());
         if (file.exists() || file.createNewFile()) {
+            if (pg != null) pg.onStart(file);
             FileOutputStream dest = new FileOutputStream(file);
             try {
-                readData(src, buf, dest, pg);
+                readData(src, buf, dest, pg, file);
             } finally {
                 dest.close();
+                if (pg != null) pg.onFinish(file);
             }
             return filename;
         } else {
@@ -302,6 +308,7 @@ public final class SocketUtils {
     public static void writeFile(OutputStream dest, byte[] buf, String filename, Progress pg) throws IOException {
         File file = new File(filename);
         if (file.exists()) {
+            if (pg != null) pg.onStart(file);
             writeString(dest, file.getName());
             writeInt64(dest, file.length());
             long t = System.currentTimeMillis(), sent = 0;
@@ -314,12 +321,15 @@ public final class SocketUtils {
                         dest.write(buf, 0, r);
                         sent += r;
                         if (pg != null && System.currentTimeMillis() - t > 500) {
-                            pg.onProgress(sent, file.length());
+                            pg.onProgress(file, sent, file.length());
                             t = System.currentTimeMillis();
                         }
                     }
                 } while (r >= 0);
-                if (pg != null) pg.onProgress(sent, file.length());
+                if (pg != null) {
+                    pg.onProgress(file, sent, file.length());
+                    pg.onFinish(file);
+                }
             } finally {
                 fis.close();
             }

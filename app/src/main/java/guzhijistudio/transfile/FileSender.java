@@ -10,9 +10,9 @@ import java.net.Socket;
 public class FileSender extends Thread {
 
     public interface FileSenderListener {
-        void onFileSent(String filename);
+        void onFileSent(File file);
         void onError(String msg);
-        void onProgress(long sent, long total);
+        void onProgress(File file, long sent, long total);
     }
 
     private final String ip;
@@ -30,6 +30,11 @@ public class FileSender extends Thread {
     @Override
     public void run() {
         byte[] buf = new byte[1024];
+        File f = new File(filename);
+        if (!f.canRead()) {
+            listener.onError("cannot read " + f.getName());
+            return;
+        }
         try {
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(ip, port));
@@ -39,12 +44,19 @@ public class FileSender extends Thread {
                     SocketUtils.writeString(os, "file");
                     SocketUtils.writeFile(os, buf, filename, new SocketUtils.Progress() {
                         @Override
-                        public void onProgress(long progress, long total) {
-                            listener.onProgress(progress, total);
+                        public void onStart(File file) {
+                        }
+
+                        @Override
+                        public void onFinish(File file) {
+                            listener.onFileSent(file);
+                        }
+
+                        @Override
+                        public void onProgress(File file, long progress, long total) {
+                            listener.onProgress(file, progress, total);
                         }
                     });
-                    File f = new File(filename);
-                    listener.onFileSent(f.getName());
                     SocketUtils.writeString(os, "close");
                 } finally {
                     os.close();
