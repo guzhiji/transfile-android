@@ -107,6 +107,7 @@ public class FileListActivity extends AppCompatActivity {
     private final Handler handler = new Handler();
     private final ArrayList<FileItem> sendingFiles = new ArrayList<>();
     private final ArrayList<FileItem> receivedFiles = new ArrayList<>();
+    private String deviceIp = null;
     private int mode = 0;
     private FileReceiver fileReceiver;
     private Broadcaster broadcaster;
@@ -188,8 +189,16 @@ public class FileListActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onError(String msg) {
-            showMessageFromThread(msg);
+        public void onError(final File file, final String msg) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (deviceIp != null && file != null) {
+                        fileSenders.submit(new FileSender(deviceIp, 8889, file.getAbsolutePath(), fsListener));
+                    }
+                    Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+                }
+            });
         }
 
         @Override
@@ -381,7 +390,7 @@ public class FileListActivity extends AppCompatActivity {
                 break;
             case 2:
                 if (resultCode == RESULT_OK && data != null) {
-                    String deviceIp = data.getStringExtra("device_ip");
+                    deviceIp = data.getStringExtra("device_ip");
                     for (FileItem file : sendingFiles) {
                         if (!file.isDone())
                             fileSenders.submit(new FileSender(deviceIp, 8889, file.getFile().getAbsolutePath(), fsListener));

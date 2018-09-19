@@ -11,7 +11,7 @@ public class FileSender extends Thread {
 
     public interface FileSenderListener {
         void onFileSent(File file);
-        void onError(String msg);
+        void onError(File file, String msg);
         void onProgress(File file, long sent, long total);
     }
 
@@ -29,10 +29,10 @@ public class FileSender extends Thread {
 
     @Override
     public void run() {
-        byte[] buf = new byte[1024];
+        byte[] buf = new byte[10240];
         File f = new File(filename);
         if (!f.canRead()) {
-            listener.onError("cannot read " + f.getName());
+            listener.onError(null, "cannot read " + f.getName());
             return;
         }
         try {
@@ -66,7 +66,7 @@ public class FileSender extends Thread {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            listener.onError(e.getMessage());
+            listener.onError(f, e.getMessage());
         }
     }
 }

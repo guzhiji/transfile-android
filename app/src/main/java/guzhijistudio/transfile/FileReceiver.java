@@ -52,7 +52,7 @@ public class FileReceiver extends Thread {
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        byte[] buf = new byte[1024];
+                        byte[] buf = new byte[10240];
                         InputStream is = null;
                         try {
                             is = s.getInputStream();
