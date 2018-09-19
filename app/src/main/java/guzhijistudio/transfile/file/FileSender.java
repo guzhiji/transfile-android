@@ -1,4 +1,4 @@
-package guzhijistudio.transfile;
+package guzhijistudio.transfile.file;
 
 import guzhijistudio.transfile.utils.SocketUtils;
 

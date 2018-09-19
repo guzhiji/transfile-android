@@ -1,30 +1,29 @@
 package guzhijistudio.transfile;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-import guzhijistudio.transfile.identityman.Broadcaster;
+import guzhijistudio.transfile.file.FileReceiver;
+import guzhijistudio.transfile.file.FileSender;
+import guzhijistudio.transfile.identity.Broadcaster;
+import guzhijistudio.transfile.utils.Constants;
+import guzhijistudio.transfile.utils.ContentUtil;
+import guzhijistudio.transfile.utils.PermUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -33,7 +32,7 @@ import java.util.concurrent.Executors;
 
 public class FileListActivity extends AppCompatActivity {
 
-    private static class FileItem {
+    private static class FileItem implements Serializable {
         final private File file;
         private boolean done;
 
@@ -94,19 +93,49 @@ public class FileListActivity extends AppCompatActivity {
             TextView fileNameText = view.findViewById(R.id.fileNameText);
             TextView fileSizeText = view.findViewById(R.id.fileSizeText);
             ProgressBar fileProgress = view.findViewById(R.id.fileProgress);
-            FileItem file = mode == 0 ? sendingFiles.get(i) : receivedFiles.get(i);
+            final FileItem file = mode == 0 ? sendingFiles.get(i) : receivedFiles.get(i);
             fileNameText.setText(file.getFile().getName());
             fileSizeText.setText(formatSize(file.getFile().length()));
             fileProgress.setMax(10000);
             fileProgress.setProgress(file.isDone() ? 10000 : 0);
             view.setTag(file.getFile());
+            // registerForContextMenu(view);
+            view.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    if (mode == 0 && deviceIp != null) {
+                        PopupMenu popup = new PopupMenu(FileListActivity.this, view);
+                        popup.getMenuInflater().inflate(R.menu.fileitem, popup.getMenu());
+                        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                            @Override
+                            public boolean onMenuItemClick(MenuItem menuItem) {
+                                switch (menuItem.getItemId()) {
+                                    case R.id.fileitem_resend:
+                                        file.setDone(false);
+                                        fileSenders.submit(new FileSender(
+                                                deviceIp,
+                                                Constants.FILE_SERVER_PORT,
+                                                file.getFile().getAbsolutePath(),
+                                                fsListener));
+                                        return true;
+                                    default:
+                                        return false;
+                                }
+                            }
+                        });
+                        popup.show();
+                        return true;
+                    }
+                    return false;
+                }
+            });
             return view;
         }
     }
 
     private final Handler handler = new Handler();
-    private final ArrayList<FileItem> sendingFiles = new ArrayList<>();
-    private final ArrayList<FileItem> receivedFiles = new ArrayList<>();
+    private ArrayList<FileItem> sendingFiles;
+    private ArrayList<FileItem> receivedFiles;
     private String deviceIp = null;
     private int mode = 0;
     private FileReceiver fileReceiver;
@@ -197,7 +226,11 @@ public class FileListActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     if (deviceIp != null && file != null) {
-                        fileSenders.submit(new FileSender(deviceIp, 8889, file.getAbsolutePath(), fsListener));
+                        fileSenders.submit(new FileSender(
+                                deviceIp,
+                                Constants.FILE_SERVER_PORT,
+                                file.getAbsolutePath(),
+                                fsListener));
                     }
                     Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
                 }
@@ -253,7 +286,18 @@ public class FileListActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_file_list);
 
-        checkPermissions(new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, true, 1);
+        PermUtil.checkPermissions(this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, true, 1);
+
+        if (savedInstanceState != null)
+            sendingFiles = (ArrayList<FileItem>) savedInstanceState.getSerializable("sendingFiles");
+        if (sendingFiles == null)
+            sendingFiles = new ArrayList<>();
+        if (savedInstanceState != null)
+            receivedFiles = (ArrayList<FileItem>) savedInstanceState.getSerializable("receivedFiles");
+        if (receivedFiles == null)
+            receivedFiles = new ArrayList<>();
+        if (savedInstanceState != null)
+            mode = savedInstanceState.getInt("mode");
 
         BottomNavigationView navigationView = findViewById(R.id.navigation);
         navigationView.setOnNavigationItemSelectedListener(nItemSelectedListener);
@@ -282,12 +326,13 @@ public class FileListActivity extends AppCompatActivity {
         fileListView.setAdapter(new FileListAdaptor());
 
         String deviceName = getIntent().getStringExtra("device_name");
-        SocketAddress groupAddr = new InetSocketAddress("224.0.0.255", 8888);
+        SocketAddress groupAddr = new InetSocketAddress(Constants.IDENTITY_GROUP_ADDR, Constants.IDENTITY_SERVER_PORT);
         broadcaster = new Broadcaster(deviceName, groupAddr);
         broadcaster.start();
 
         try {
-            fileReceiver = new FileReceiver(8889,
+            fileReceiver = new FileReceiver(
+                    Constants.FILE_SERVER_PORT,
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                     frListener);
             fileReceiver.start();
@@ -306,16 +351,12 @@ public class FileListActivity extends AppCompatActivity {
             fileReceiver.shutdown();
     }
 
-    protected boolean checkPermissions(String[] permissions, boolean doRequest, int requestCode) {
-        ArrayList<String> toRequest = new ArrayList<>();
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED)
-                toRequest.add(permission);
-        }
-        if (toRequest.isEmpty()) return true;
-        if (doRequest)
-            ActivityCompat.requestPermissions(this, toRequest.toArray(new String[0]), requestCode);
-        return false;
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putSerializable("sendingFiles", sendingFiles);
+        outState.putSerializable("receivedFiles", receivedFiles);
+        outState.putInt("mode", mode);
+        super.onSaveInstanceState(outState);
     }
 
     private void showMessageFromThread(final String msg) {
@@ -325,31 +366,6 @@ public class FileListActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
             }
         });
-    }
-
-    public static String getPath(Context context, Uri uri) {
-        if ("content".equalsIgnoreCase(uri.getScheme())) {
-            String[] projection = { MediaStore.MediaColumns.DATA };
-            Cursor cursor;
-            try {
-                cursor = context.getContentResolver().query(uri, projection, null, null, null);
-                if (cursor != null) {
-                    try {
-                        int column_index = cursor.getColumnIndexOrThrow(projection[0]);
-                        if (cursor.moveToFirst()) {
-                            return cursor.getString(column_index);
-                        }
-                    } finally {
-                        cursor.close();
-                    }
-                }
-            } catch (Exception e) {
-                Log.e("filesender", e.getMessage());
-            }
-        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
-            return uri.getPath();
-        }
-        return null;
     }
 
     private static String formatSize(long size) {
@@ -382,7 +398,7 @@ public class FileListActivity extends AppCompatActivity {
                 if (resultCode == RESULT_OK && data != null) {
                     Uri uri = data.getData();
                     if (uri != null) {
-                        String filepath = getPath(getApplicationContext(), uri);
+                        String filepath = ContentUtil.getPath(getApplicationContext(), uri);
                         if (filepath != null) {
                             File file = new File(filepath);
                             FileItem fileItem = new FileItem(file);
@@ -399,7 +415,11 @@ public class FileListActivity extends AppCompatActivity {
                     deviceIp = data.getStringExtra("device_ip");
                     for (FileItem file : sendingFiles) {
                         if (!file.isDone())
-                            fileSenders.submit(new FileSender(deviceIp, 8889, file.getFile().getAbsolutePath(), fsListener));
+                            fileSenders.submit(new FileSender(
+                                    deviceIp,
+                                    Constants.FILE_SERVER_PORT,
+                                    file.getFile().getAbsolutePath(),
+                                    fsListener));
                     }
                 }
                 break;

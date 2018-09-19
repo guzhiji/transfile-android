@@ -10,7 +10,8 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import guzhijistudio.transfile.identityman.UdpServer;
+import guzhijistudio.transfile.identity.UdpServer;
+import guzhijistudio.transfile.utils.Constants;
 
 import java.io.IOException;
 import java.net.*;
@@ -160,8 +161,8 @@ public class DeviceListActivity extends AppCompatActivity {
         }
 
         try {
-            SocketAddress addr = new InetSocketAddress("0.0.0.0", 8888);
-            InetAddress group = InetAddress.getByName("224.0.0.255");
+            SocketAddress addr = new InetSocketAddress("0.0.0.0", Constants.IDENTITY_SERVER_PORT);
+            InetAddress group = InetAddress.getByName(Constants.IDENTITY_GROUP_ADDR);
             server = new UdpServer(addr, group, usListener);
             server.start();
         } catch (UnknownHostException e) {

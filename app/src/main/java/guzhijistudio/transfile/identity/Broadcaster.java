@@ -1,4 +1,4 @@
-package guzhijistudio.transfile.identityman;
+package guzhijistudio.transfile.identity;
 
 import guzhijistudio.transfile.utils.SocketUtils;
 
