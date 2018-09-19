@@ -160,10 +160,13 @@ public class FileListActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     if (mode == 1) {
-                        ProgressBar bar = findFileProgressBar(file);
-                        if (bar != null) {
+                        View itemView = findFileItemView(file);
+                        if (itemView != null) {
+                            ProgressBar bar = itemView.findViewById(R.id.fileProgress);
                             bar.setMax(10000);
                             bar.setProgress((int) (10000.0 * received / total));
+                            TextView txt = itemView.findViewById(R.id.fileSizeText);
+                            txt.setText(String.format("%s / %s", formatSize(received), formatSize(total)));
                         }
                     }
                 }
@@ -207,10 +210,13 @@ public class FileListActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     if (mode == 0) {
-                        ProgressBar bar = findFileProgressBar(file);
-                        if (bar != null) {
+                        View itemView = findFileItemView(file);
+                        if (itemView != null) {
+                            ProgressBar bar = itemView.findViewById(R.id.fileProgress);
                             bar.setMax(10000);
                             bar.setProgress((int) (10000.0 * sent / total));
+                            TextView txt = itemView.findViewById(R.id.fileSizeText);
+                            txt.setText(String.format("%s / %s", formatSize(sent), formatSize(total)));
                         }
                     }
                 }
@@ -360,11 +366,11 @@ public class FileListActivity extends AppCompatActivity {
         return Math.round(s * 100) / 100.0 + " Gb";
     }
 
-    private ProgressBar findFileProgressBar(File file) {
+    private View findFileItemView(File file) {
         for (int i = 0; i < fileListView.getChildCount(); i++) {
             View itemView = fileListView.getChildAt(i);
             if (file.equals(itemView.getTag()))
-                return itemView.findViewById(R.id.fileProgress);
+                return itemView;
         }
         return null;
     }
