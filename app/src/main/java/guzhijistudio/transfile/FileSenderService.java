@@ -11,13 +11,17 @@ import guzhijistudio.transfile.utils.Constants;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileSenderService extends Service {
 
+    private AtomicInteger count = null;
     private ExecutorService fileSenders;
     final private FileSender.FileSenderListener fsListener = new FileSender.FileSenderListener() {
         @Override
         public void onStart(File file) {
+            if (count == null) count = new AtomicInteger();
+            count.incrementAndGet();
             Intent i = new Intent(Constants.ACTION_FILE_SENDER);
             i.putExtra("type", Constants.FILE_SENDER_START);
             i.putExtra("file", file);
@@ -26,6 +30,7 @@ public class FileSenderService extends Service {
 
         @Override
         public void onFileSent(File file) {
+            count.decrementAndGet();
             Intent i = new Intent(Constants.ACTION_FILE_SENDER);
             i.putExtra("type", Constants.FILE_SENDER_DONE);
             i.putExtra("file", file);
@@ -34,6 +39,7 @@ public class FileSenderService extends Service {
 
         @Override
         public void onError(File file, String msg) {
+            if (file != null && count != null) count.decrementAndGet();
             Intent i = new Intent(Constants.ACTION_FILE_SENDER);
             i.putExtra("type", Constants.FILE_SENDER_ERROR);
             i.putExtra("file", file);
@@ -56,6 +62,21 @@ public class FileSenderService extends Service {
     @Override
     public void onCreate() {
         fileSenders = Executors.newFixedThreadPool(2);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    if (count != null && count.get() <= 0) {
+                        stopSelf();
+                        break;
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        }).start();
     }
 
     @Override

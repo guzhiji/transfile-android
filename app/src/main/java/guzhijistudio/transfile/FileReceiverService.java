@@ -11,14 +11,17 @@ import guzhijistudio.transfile.utils.Constants;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileReceiverService extends Service {
 
+    private AtomicInteger count = null;
     private FileReceiver fileReceiver;
     final private FileReceiver.FileReceiverListener frListener = new FileReceiver.FileReceiverListener() {
 
         @Override
         public void onFileReceived(File file) {
+            count.decrementAndGet();
             Intent i = new Intent(Constants.ACTION_FILE_RECEIVER);
             i.putExtra("type", Constants.FILE_RECEIVER_DONE);
             i.putExtra("file", file);
@@ -27,6 +30,7 @@ public class FileReceiverService extends Service {
 
         @Override
         public void onFile(File file) {
+            count.incrementAndGet();
             Intent i = new Intent(Constants.ACTION_FILE_RECEIVER);
             i.putExtra("type", Constants.FILE_RECEIVER_START);
             i.putExtra("file", file);
@@ -40,6 +44,7 @@ public class FileReceiverService extends Service {
 
         @Override
         public void onError(String msg) {
+            count.getAndDecrement();
             Intent i = new Intent(Constants.ACTION_FILE_RECEIVER);
             i.putExtra("type", Constants.FILE_RECEIVER_ERROR);
             i.putExtra("msg", msg);
@@ -61,11 +66,27 @@ public class FileReceiverService extends Service {
     @Override
     public void onCreate() {
         try {
+            count = new AtomicInteger();
             fileReceiver = new FileReceiver(
                     Constants.FILE_SERVER_PORT,
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                     frListener);
             fileReceiver.start();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (true) {
+                        if (!FileListActivity.isAlive && count.get() <= 0) {
+                            stopSelf();
+                            break;
+                        }
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ignored) {
+                        }
+                    }
+                }
+            }).start();
         } catch (IOException e) {
             e.printStackTrace();
             stopSelf();

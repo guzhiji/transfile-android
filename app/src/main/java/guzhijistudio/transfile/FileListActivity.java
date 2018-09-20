@@ -29,6 +29,7 @@ import java.util.ArrayList;
 
 public class FileListActivity extends AppCompatActivity {
 
+    public static boolean isAlive = false;
     private static class FileItem implements Serializable {
         final private File file;
         private boolean done;
@@ -341,13 +342,16 @@ public class FileListActivity extends AppCompatActivity {
                 }
             }
         }, fileSenderIntentFilter);
+
+        FileListActivity.isAlive = true;
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         if (broadcaster != null)
             broadcaster.shutdown();
+        FileListActivity.isAlive = false;
+        super.onDestroy();
     }
 
     @Override
