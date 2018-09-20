@@ -80,10 +80,7 @@ public class FileReceiver extends Thread {
                                             listener.onError("文件接收失败");
                                     } else if ("msg".equalsIgnoreCase(cmd)) {
                                         String m = SocketUtils.readString(is, buf);
-                                        if (m.isEmpty())
-                                            listener.onError("消息接收失败");
-                                        else
-                                            listener.onMsg(m);
+                                        if (!m.isEmpty()) listener.onMsg(m);
                                     } else if ("close".equalsIgnoreCase(cmd)) {
                                         is.close();
                                         s.close();

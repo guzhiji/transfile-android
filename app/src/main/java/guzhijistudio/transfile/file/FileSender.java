@@ -10,6 +10,7 @@ import java.net.Socket;
 public class FileSender extends Thread {
 
     public interface FileSenderListener {
+        void onStart(File file);
         void onFileSent(File file);
         void onError(File file, String msg);
         void onProgress(File file, long sent, long total);
@@ -45,6 +46,7 @@ public class FileSender extends Thread {
                     SocketUtils.writeFile(os, buf, filename, new SocketUtils.Progress() {
                         @Override
                         public void onStart(File file) {
+                            listener.onStart(file);
                         }
 
                         @Override

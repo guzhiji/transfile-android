@@ -1,40 +1,38 @@
 package guzhijistudio.transfile;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-import guzhijistudio.transfile.file.FileReceiver;
-import guzhijistudio.transfile.file.FileSender;
 import guzhijistudio.transfile.identity.Broadcaster;
 import guzhijistudio.transfile.utils.Constants;
 import guzhijistudio.transfile.utils.ContentUtil;
 import guzhijistudio.transfile.utils.PermUtil;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class FileListActivity extends AppCompatActivity {
 
     private static class FileItem implements Serializable {
         final private File file;
         private boolean done;
+        private boolean progressing;
 
         public FileItem(File file) {
             this.file = file;
@@ -50,6 +48,14 @@ public class FileListActivity extends AppCompatActivity {
 
         public void setDone(boolean done) {
             this.done = done;
+        }
+
+        public boolean isProgressing() {
+            return progressing;
+        }
+
+        public void setProgressing(boolean progressing) {
+            this.progressing = progressing;
         }
 
         @Override
@@ -97,13 +103,16 @@ public class FileListActivity extends AppCompatActivity {
             fileNameText.setText(file.getFile().getName());
             fileSizeText.setText(formatSize(file.getFile().length()));
             fileProgress.setMax(10000);
-            fileProgress.setProgress(file.isDone() ? 10000 : 0);
+            if (file.isDone())
+                fileProgress.setProgress(10000);
+            else if (!file.isProgressing())
+                fileProgress.setProgress(0);
             view.setTag(file.getFile());
             // registerForContextMenu(view);
             view.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
-                    if (mode == 0 && deviceIp != null) {
+                    if (mode == 0 && deviceIp != null && !file.isProgressing()) {
                         PopupMenu popup = new PopupMenu(FileListActivity.this, view);
                         popup.getMenuInflater().inflate(R.menu.fileitem, popup.getMenu());
                         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
@@ -111,12 +120,10 @@ public class FileListActivity extends AppCompatActivity {
                             public boolean onMenuItemClick(MenuItem menuItem) {
                                 switch (menuItem.getItemId()) {
                                     case R.id.fileitem_resend:
-                                        file.setDone(false);
-                                        fileSenders.submit(new FileSender(
-                                                deviceIp,
-                                                Constants.FILE_SERVER_PORT,
-                                                file.getFile().getAbsolutePath(),
-                                                fsListener));
+                                        Intent i = new Intent(FileListActivity.this, FileSenderService.class);
+                                        i.putExtra("device_ip", deviceIp);
+                                        i.putExtra("file_path", file.getFile().getAbsolutePath());
+                                        startService(i);
                                         return true;
                                     default:
                                         return false;
@@ -133,129 +140,11 @@ public class FileListActivity extends AppCompatActivity {
         }
     }
 
-    private final Handler handler = new Handler();
     private ArrayList<FileItem> sendingFiles;
     private ArrayList<FileItem> receivedFiles;
     private String deviceIp = null;
     private int mode = 0;
-    private FileReceiver fileReceiver;
     private Broadcaster broadcaster;
-    final private ExecutorService fileSenders = Executors.newFixedThreadPool(2);
-    final private FileReceiver.FileReceiverListener frListener = new FileReceiver.FileReceiverListener() {
-
-        @Override
-        public void onFileReceived(final File file) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    for (FileItem fileItem : receivedFiles) {
-                        if (fileItem.getFile().equals(file)) {
-                            fileItem.setDone(true);
-                            break;
-                        }
-                    }
-                    Toast.makeText(getApplicationContext(), file.getName() + " received", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-
-        @Override
-        public void onFile(final File file) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    FileItem fileItem = new FileItem(file);
-                    if (!receivedFiles.contains(fileItem)) {
-                        receivedFiles.add(fileItem);
-                        if (mode == 1) fileListView.setAdapter(new FileListAdaptor());
-                    }
-                }
-            });
-        }
-
-        @Override
-        public void onMsg(String msg) {
-            showMessageFromThread(msg);
-        }
-
-        @Override
-        public void onError(String msg) {
-            showMessageFromThread(msg);
-        }
-
-        @Override
-        public void onProgress(final File file, final long received, final long total) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mode == 1) {
-                        View itemView = findFileItemView(file);
-                        if (itemView != null) {
-                            ProgressBar bar = itemView.findViewById(R.id.fileProgress);
-                            bar.setMax(10000);
-                            bar.setProgress((int) (10000.0 * received / total));
-                            TextView txt = itemView.findViewById(R.id.fileSizeText);
-                            txt.setText(String.format("%s / %s", formatSize(received), formatSize(total)));
-                        }
-                    }
-                }
-            });
-        }
-    };
-    final private FileSender.FileSenderListener fsListener = new FileSender.FileSenderListener() {
-        @Override
-        public void onFileSent(final File file) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    for (FileItem fileItem : sendingFiles) {
-                        if (fileItem.getFile().equals(file)) {
-                            fileItem.setDone(true);
-                            break;
-                        }
-                    }
-                    Toast.makeText(getApplicationContext(), file.getName() + " sent", Toast.LENGTH_SHORT).show();
-                }
-            });
-            showMessageFromThread(file.getName() + " sent");
-        }
-
-        @Override
-        public void onError(final File file, final String msg) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (deviceIp != null && file != null) {
-                        fileSenders.submit(new FileSender(
-                                deviceIp,
-                                Constants.FILE_SERVER_PORT,
-                                file.getAbsolutePath(),
-                                fsListener));
-                    }
-                    Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-
-        @Override
-        public void onProgress(final File file, final long sent, final long total) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mode == 0) {
-                        View itemView = findFileItemView(file);
-                        if (itemView != null) {
-                            ProgressBar bar = itemView.findViewById(R.id.fileProgress);
-                            bar.setMax(10000);
-                            bar.setProgress((int) (10000.0 * sent / total));
-                            TextView txt = itemView.findViewById(R.id.fileSizeText);
-                            txt.setText(String.format("%s / %s", formatSize(sent), formatSize(total)));
-                        }
-                    }
-                }
-            });
-        }
-    };
     final private BottomNavigationView.OnNavigationItemSelectedListener nItemSelectedListener = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
         @Override
@@ -330,16 +219,128 @@ public class FileListActivity extends AppCompatActivity {
         broadcaster = new Broadcaster(deviceName, groupAddr);
         broadcaster.start();
 
-        try {
-            fileReceiver = new FileReceiver(
-                    Constants.FILE_SERVER_PORT,
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    frListener);
-            fileReceiver.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        IntentFilter fileReceiverIntentFilter = new IntentFilter(Constants.ACTION_FILE_RECEIVER);
+        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                File file = (File) intent.getSerializableExtra("file");
+                switch (intent.getIntExtra("type", 0)) {
+                    case Constants.FILE_RECEIVER_START:
+                        boolean found = false;
+                        for (FileItem fileItem : receivedFiles) {
+                            if (fileItem.getFile().equals(file)) {
+                                fileItem.setDone(false);
+                                fileItem.setProgressing(true);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            FileItem fileItem = new FileItem(file);
+                            fileItem.setDone(false);
+                            fileItem.setProgressing(true);
+                            receivedFiles.add(fileItem);
+                            if (mode == 1) fileListView.setAdapter(new FileListAdaptor());
+                        }
+                        break;
+                    case Constants.FILE_RECEIVER_DONE:
+                        for (FileItem fileItem : receivedFiles) {
+                            if (fileItem.getFile().equals(file)) {
+                                fileItem.setDone(true);
+                                fileItem.setProgressing(false);
+                                break;
+                            }
+                        }
+                        Toast.makeText(getApplicationContext(), file.getName() + " received", Toast.LENGTH_SHORT).show();
+                        break;
+                    case Constants.FILE_RECEIVER_PROGRESS:
+                        if (mode == 1) {
+                            long received = intent.getLongExtra("received", 0);
+                            long total = intent.getLongExtra("total", 0);
+                            if (!showProgress(file, received, total)) {
+                                FileItem fileItem = new FileItem(file);
+                                if (!receivedFiles.contains(fileItem)) {
+                                    fileItem.setProgressing(true);
+                                    fileItem.setDone(false);
+                                    receivedFiles.add(fileItem);
+                                    fileListView.setAdapter(new FileListAdaptor());
+                                    showProgress(file, received, total);
+                                }
+                            }
+                        }
+                        break;
+                    case Constants.FILE_RECEIVER_ERROR:
+                        Toast.makeText(getApplicationContext(), intent.getStringExtra("msg"), Toast.LENGTH_LONG).show();
+                        break;
+                }
+            }
+        }, fileReceiverIntentFilter);
 
+        startService(new Intent(this, FileReceiverService.class));
+
+        IntentFilter fileSenderIntentFilter = new IntentFilter(Constants.ACTION_FILE_SENDER);
+        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                File file = (File) intent.getSerializableExtra("file");
+                switch (intent.getIntExtra("type", 0)) {
+                    case Constants.FILE_SENDER_START:
+                        boolean found = false;
+                        for (FileItem fileItem : sendingFiles) {
+                            if (fileItem.getFile().equals(file)) {
+                                fileItem.setDone(false);
+                                fileItem.setProgressing(true);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            FileItem fileItem = new FileItem(file);
+                            fileItem.setDone(false);
+                            fileItem.setProgressing(true);
+                            sendingFiles.add(fileItem);
+                            if (mode == 0) fileListView.setAdapter(new FileListAdaptor());
+                        }
+                        break;
+                    case Constants.FILE_SENDER_PROGRESS:
+                        if (mode == 0) {
+                            long sent = intent.getLongExtra("sent", 0);
+                            long total = intent.getLongExtra("total", 0);
+                            if (!showProgress(file, sent, total)) {
+                                FileItem fileItem = new FileItem(file);
+                                if (!sendingFiles.contains(fileItem)) {
+                                    fileItem.setProgressing(true);
+                                    fileItem.setDone(false);
+                                    sendingFiles.add(fileItem);
+                                    fileListView.setAdapter(new FileListAdaptor());
+                                    showProgress(file, sent, total);
+                                }
+                            }
+                        }
+                        break;
+                    case Constants.FILE_SENDER_DONE:
+                        for (FileItem fileItem : sendingFiles) {
+                            if (fileItem.getFile().equals(file)) {
+                                fileItem.setDone(true);
+                                fileItem.setProgressing(false);
+                                break;
+                            }
+                        }
+                        Toast.makeText(getApplicationContext(), file.getName() + " sent", Toast.LENGTH_SHORT).show();
+                        break;
+                    case Constants.FILE_SENDER_ERROR:
+                        for (FileItem fileItem : sendingFiles) {
+                            if (fileItem.getFile().equals(file)) {
+                                fileItem.setDone(false);
+                                fileItem.setProgressing(false);
+                                break;
+                            }
+                        }
+                        Toast.makeText(getApplicationContext(), intent.getStringExtra("msg"), Toast.LENGTH_LONG).show();
+                        break;
+                }
+            }
+        }, fileSenderIntentFilter);
     }
 
     @Override
@@ -347,8 +348,6 @@ public class FileListActivity extends AppCompatActivity {
         super.onDestroy();
         if (broadcaster != null)
             broadcaster.shutdown();
-        if (fileReceiver != null)
-            fileReceiver.shutdown();
     }
 
     @Override
@@ -359,13 +358,15 @@ public class FileListActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
     }
 
-    private void showMessageFromThread(final String msg) {
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
-            }
-        });
+    private boolean showProgress(File file, long progress, long total) {
+        View itemView = findFileItemView(file);
+        if (itemView == null) return false;
+        ProgressBar bar = itemView.findViewById(R.id.fileProgress);
+        bar.setMax(10000);
+        bar.setProgress((int) (10000.0 * progress / total));
+        TextView txt = itemView.findViewById(R.id.fileSizeText);
+        txt.setText(String.format("%s / %s", formatSize(progress), formatSize(total)));
+        return true;
     }
 
     private static String formatSize(long size) {
@@ -414,12 +415,12 @@ public class FileListActivity extends AppCompatActivity {
                 if (resultCode == RESULT_OK && data != null) {
                     deviceIp = data.getStringExtra("device_ip");
                     for (FileItem file : sendingFiles) {
-                        if (!file.isDone())
-                            fileSenders.submit(new FileSender(
-                                    deviceIp,
-                                    Constants.FILE_SERVER_PORT,
-                                    file.getFile().getAbsolutePath(),
-                                    fsListener));
+                        if (!file.isDone() && !file.isProgressing()) {
+                            Intent i = new Intent(FileListActivity.this, FileSenderService.class);
+                            i.putExtra("device_ip", deviceIp);
+                            i.putExtra("file_path", file.getFile().getAbsolutePath());
+                            startService(i);
+                        }
                     }
                 }
                 break;

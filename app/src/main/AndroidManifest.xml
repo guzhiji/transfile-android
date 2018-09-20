@@ -24,6 +24,8 @@
         </activity>
         <activity android:name=".FileListActivity">
         </activity>
+        <service android:name=".FileSenderService" android:exported="false" />
+        <service android:name=".FileReceiverService" android:exported="false" />
     </application>
 
 </manifest>
