@@ -65,11 +65,17 @@ public class FileReceiverService extends Service {
 
     @Override
     public void onCreate() {
+        String dir = getSharedPreferences("config", MODE_PRIVATE)
+                .getString("dir", null);
+        if (dir == null) {
+            stopSelf();
+            return;
+        }
         try {
             count = new AtomicInteger();
             fileReceiver = new FileReceiver(
                     Constants.FILE_SERVER_PORT,
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    new File(dir),
                     frListener);
             fileReceiver.start();
             new Thread(new Runnable() {

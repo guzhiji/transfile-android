@@ -1,10 +1,13 @@
 package guzhijistudio.transfile;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -12,20 +15,28 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.*;
-import guzhijistudio.transfile.identity.Broadcaster;
-import guzhijistudio.transfile.utils.Constants;
-import guzhijistudio.transfile.utils.ContentUtil;
-import guzhijistudio.transfile.utils.PermUtil;
+import android.widget.BaseAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.PopupMenu;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+
+import guzhijistudio.transfile.identity.Broadcaster;
+import guzhijistudio.transfile.utils.Constants;
+import guzhijistudio.transfile.utils.ContentUtil;
+import guzhijistudio.transfile.utils.PermUtil;
 
 public class FileListActivity extends AppCompatActivity {
 
@@ -145,7 +156,7 @@ public class FileListActivity extends AppCompatActivity {
     private ArrayList<FileItem> receivedFiles;
     private String deviceIp = null;
     private int mode = 0;
-    private Broadcaster broadcaster;
+    private Broadcaster broadcaster = null;
     final private BottomNavigationView.OnNavigationItemSelectedListener nItemSelectedListener = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
         @Override
@@ -215,11 +226,6 @@ public class FileListActivity extends AppCompatActivity {
         fileListView = findViewById(R.id.fileListView);
         fileListView.setAdapter(new FileListAdaptor());
 
-        String deviceName = getIntent().getStringExtra("device_name");
-        SocketAddress groupAddr = new InetSocketAddress(Constants.IDENTITY_GROUP_ADDR, Constants.IDENTITY_SERVER_PORT);
-        broadcaster = new Broadcaster(deviceName, groupAddr);
-        broadcaster.start();
-
         IntentFilter fileReceiverIntentFilter = new IntentFilter(Constants.ACTION_FILE_RECEIVER);
         LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
             @Override
@@ -276,8 +282,6 @@ public class FileListActivity extends AppCompatActivity {
                 }
             }
         }, fileReceiverIntentFilter);
-
-        startService(new Intent(this, FileReceiverService.class));
 
         IntentFilter fileSenderIntentFilter = new IntentFilter(Constants.ACTION_FILE_SENDER);
         LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
@@ -343,15 +347,56 @@ public class FileListActivity extends AppCompatActivity {
             }
         }, fileSenderIntentFilter);
 
+        startService(new Intent(this, FileReceiverService.class));
         FileListActivity.isAlive = true;
     }
 
     @Override
     protected void onDestroy() {
-        if (broadcaster != null)
-            broadcaster.shutdown();
         FileListActivity.isAlive = false;
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        SharedPreferences pref = getSharedPreferences("config", MODE_PRIVATE);
+        if (!pref.contains("device_name")) {
+            new AlertDialog.Builder(this)
+                    .setTitle("请对本程序进行设置")
+                    .setMessage("您还未设置本程序，请点击“设置”，否则将退出。")
+                    .setPositiveButton("设置", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            Intent intent = new Intent(FileListActivity.this, ConfigActivity.class);
+                            startActivity(intent);
+                        }
+                    })
+                    .setNegativeButton("退出", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            finish();
+                        }
+                    })
+                    .create()
+                    .show();
+        } else {
+            String deviceName = pref.getString("device_name", "");
+            SocketAddress groupAddr = new InetSocketAddress(
+                    pref.getString("group_addr", Constants.IDENTITY_GROUP_ADDR),
+                    Constants.IDENTITY_SERVER_PORT);
+            broadcaster = new Broadcaster(deviceName, groupAddr);
+            broadcaster.start();
+            Log.i("resume", "device=" + deviceName);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (broadcaster != null)
+            broadcaster.shutdown();
+        Log.i("resume", "pause");
     }
 
     @Override

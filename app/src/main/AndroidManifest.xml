@@ -13,7 +13,7 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity android:name=".FileListActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
@@ -22,10 +22,16 @@
         </activity>
         <activity android:name=".DeviceListActivity">
         </activity>
-        <activity android:name=".FileListActivity">
+        <activity android:name=".ConfigActivity">
         </activity>
-        <service android:name=".FileSenderService" android:exported="false" />
-        <service android:name=".FileReceiverService" android:exported="false" />
+
+        <service
+                android:name=".FileSenderService"
+                android:exported="false"/>
+        <service
+                android:name=".FileReceiverService"
+                android:exported="false"/>
+
     </application>
 
 </manifest>
