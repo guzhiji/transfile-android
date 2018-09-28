@@ -2,21 +2,24 @@ package guzhijistudio.transfile;
 
 import android.app.Service;
 import android.content.Intent;
-import android.os.Environment;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import guzhijistudio.transfile.file.FileReceiver;
+import guzhijistudio.transfile.identity.Broadcaster;
 import guzhijistudio.transfile.utils.Constants;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileReceiverService extends Service {
 
     private AtomicInteger count = null;
     private FileReceiver fileReceiver;
+    private Broadcaster broadcaster = null;
     final private FileReceiver.FileReceiverListener frListener = new FileReceiver.FileReceiverListener() {
 
         @Override
@@ -65,9 +68,12 @@ public class FileReceiverService extends Service {
 
     @Override
     public void onCreate() {
-        String dir = getSharedPreferences("config", MODE_PRIVATE)
-                .getString("dir", null);
-        if (dir == null) {
+        super.onCreate();
+        SharedPreferences pref = getSharedPreferences("config", MODE_PRIVATE);
+        String deviceName = pref.getString("device_name", null);
+        String groupAddr = pref.getString("group_addr", Constants.IDENTITY_GROUP_ADDR);
+        String dir = pref.getString("dir", null);
+        if (deviceName == null || dir == null) {
             stopSelf();
             return;
         }
@@ -78,6 +84,10 @@ public class FileReceiverService extends Service {
                     new File(dir),
                     frListener);
             fileReceiver.start();
+            broadcaster = new Broadcaster(
+                    deviceName,
+                    new InetSocketAddress(groupAddr, Constants.IDENTITY_SERVER_PORT));
+            broadcaster.start();
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -102,6 +112,8 @@ public class FileReceiverService extends Service {
     @Override
     public void onDestroy() {
         if (fileReceiver != null) fileReceiver.shutdown();
+        if (broadcaster != null) broadcaster.shutdown();
+        super.onDestroy();
     }
 
     @Nullable

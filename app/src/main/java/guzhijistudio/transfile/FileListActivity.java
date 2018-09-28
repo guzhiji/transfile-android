@@ -2,12 +2,7 @@ package guzhijistudio.transfile;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
+import android.content.*;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -15,31 +10,26 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.ListView;
-import android.widget.PopupMenu;
-import android.widget.ProgressBar;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import java.io.File;
-import java.io.Serializable;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.ArrayList;
-
-import guzhijistudio.transfile.identity.Broadcaster;
+import android.widget.*;
 import guzhijistudio.transfile.utils.Constants;
 import guzhijistudio.transfile.utils.ContentUtil;
 import guzhijistudio.transfile.utils.PermUtil;
 
+import java.io.File;
+import java.io.Serializable;
+import java.util.ArrayList;
+
 public class FileListActivity extends AppCompatActivity {
 
+    private final static int REQUEST_GET_FILE = 1;
+    private final static int REQUEST_GET_DEVICE = 2;
+    private final static int REQUEST_SETTINGS = 3;
+    private final static int MODE_SEND = 0;
+    private final static int MODE_RECEIVE = 1;
     public static boolean isAlive = false;
     private static class FileItem implements Serializable {
         final private File file;
@@ -90,12 +80,12 @@ public class FileListActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            return mode == 0 ? sendingFiles.size() : receivedFiles.size();
+            return mode == MODE_SEND ? sendingFiles.size() : receivedFiles.size();
         }
 
         @Override
         public Object getItem(int i) {
-            return mode == 0 ? sendingFiles.get(i) : receivedFiles.get(i);
+            return mode == MODE_SEND ? sendingFiles.get(i) : receivedFiles.get(i);
         }
 
         @Override
@@ -111,7 +101,7 @@ public class FileListActivity extends AppCompatActivity {
             TextView fileNameText = view.findViewById(R.id.fileNameText);
             TextView fileSizeText = view.findViewById(R.id.fileSizeText);
             ProgressBar fileProgress = view.findViewById(R.id.fileProgress);
-            final FileItem file = mode == 0 ? sendingFiles.get(i) : receivedFiles.get(i);
+            final FileItem file = mode == MODE_SEND ? sendingFiles.get(i) : receivedFiles.get(i);
             fileNameText.setText(file.getFile().getName());
             fileSizeText.setText(formatSize(file.getFile().length()));
             fileProgress.setMax(10000);
@@ -124,7 +114,7 @@ public class FileListActivity extends AppCompatActivity {
             view.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
-                    if (mode == 0 && deviceIp != null && !file.isProgressing()) {
+                    if (mode == MODE_SEND && deviceIp != null && !file.isProgressing()) {
                         PopupMenu popup = new PopupMenu(FileListActivity.this, view);
                         popup.getMenuInflater().inflate(R.menu.fileitem, popup.getMenu());
                         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
@@ -155,21 +145,20 @@ public class FileListActivity extends AppCompatActivity {
     private ArrayList<FileItem> sendingFiles;
     private ArrayList<FileItem> receivedFiles;
     private String deviceIp = null;
-    private int mode = 0;
-    private Broadcaster broadcaster = null;
+    private int mode = MODE_SEND;
     final private BottomNavigationView.OnNavigationItemSelectedListener nItemSelectedListener = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
         @Override
         public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
             switch (menuItem.getItemId()) {
                 case R.id.navigation_send:
-                    mode = 0;
+                    mode = MODE_SEND;
                     fileListView.setAdapter(new FileListAdaptor());
                     addFileButton.setVisibility(View.VISIBLE);
                     sendAllButton.setVisibility(View.VISIBLE);
                     return true;
                 case R.id.navigation_receive:
-                    mode = 1;
+                    mode = MODE_RECEIVE;
                     fileListView.setAdapter(new FileListAdaptor());
                     addFileButton.setVisibility(View.INVISIBLE);
                     sendAllButton.setVisibility(View.INVISIBLE);
@@ -210,7 +199,7 @@ public class FileListActivity extends AppCompatActivity {
                 Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                 i.addCategory(Intent.CATEGORY_OPENABLE);
                 i.setType("*/*");
-                startActivityForResult(i, 1);
+                startActivityForResult(i, REQUEST_GET_FILE);
             }
         });
 
@@ -219,7 +208,7 @@ public class FileListActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent i = new Intent(FileListActivity.this, DeviceListActivity.class);
-                startActivityForResult(i, 2);
+                startActivityForResult(i, REQUEST_GET_DEVICE);
             }
         });
 
@@ -247,7 +236,7 @@ public class FileListActivity extends AppCompatActivity {
                             fileItem.setDone(false);
                             fileItem.setProgressing(true);
                             receivedFiles.add(fileItem);
-                            if (mode == 1) fileListView.setAdapter(new FileListAdaptor());
+                            if (mode == MODE_RECEIVE) fileListView.setAdapter(new FileListAdaptor());
                         }
                         break;
                     case Constants.FILE_RECEIVER_DONE:
@@ -261,7 +250,7 @@ public class FileListActivity extends AppCompatActivity {
                         Toast.makeText(getApplicationContext(), file.getName() + " received", Toast.LENGTH_SHORT).show();
                         break;
                     case Constants.FILE_RECEIVER_PROGRESS:
-                        if (mode == 1) {
+                        if (mode == MODE_RECEIVE) {
                             long received = intent.getLongExtra("received", 0);
                             long total = intent.getLongExtra("total", 0);
                             if (!showProgress(file, received, total)) {
@@ -304,11 +293,11 @@ public class FileListActivity extends AppCompatActivity {
                             fileItem.setDone(false);
                             fileItem.setProgressing(true);
                             sendingFiles.add(fileItem);
-                            if (mode == 0) fileListView.setAdapter(new FileListAdaptor());
+                            if (mode == MODE_SEND) fileListView.setAdapter(new FileListAdaptor());
                         }
                         break;
                     case Constants.FILE_SENDER_PROGRESS:
-                        if (mode == 0) {
+                        if (mode == MODE_SEND) {
                             long sent = intent.getLongExtra("sent", 0);
                             long total = intent.getLongExtra("total", 0);
                             if (!showProgress(file, sent, total)) {
@@ -369,7 +358,8 @@ public class FileListActivity extends AppCompatActivity {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             Intent intent = new Intent(FileListActivity.this, ConfigActivity.class);
-                            startActivity(intent);
+                            intent.putExtra("initialization", true);
+                            startActivityForResult(intent, REQUEST_SETTINGS);
                         }
                     })
                     .setNegativeButton("退出", new DialogInterface.OnClickListener() {
@@ -380,23 +370,7 @@ public class FileListActivity extends AppCompatActivity {
                     })
                     .create()
                     .show();
-        } else {
-            String deviceName = pref.getString("device_name", "");
-            SocketAddress groupAddr = new InetSocketAddress(
-                    pref.getString("group_addr", Constants.IDENTITY_GROUP_ADDR),
-                    Constants.IDENTITY_SERVER_PORT);
-            broadcaster = new Broadcaster(deviceName, groupAddr);
-            broadcaster.start();
-            Log.i("resume", "device=" + deviceName);
         }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (broadcaster != null)
-            broadcaster.shutdown();
-        Log.i("resume", "pause");
     }
 
     @Override
@@ -444,7 +418,7 @@ public class FileListActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         switch (requestCode) {
-            case 1:
+            case REQUEST_GET_FILE:
                 if (resultCode == RESULT_OK && data != null) {
                     Uri uri = data.getData();
                     if (uri != null) {
@@ -460,7 +434,7 @@ public class FileListActivity extends AppCompatActivity {
                     }
                 }
                 break;
-            case 2:
+            case REQUEST_GET_DEVICE:
                 if (resultCode == RESULT_OK && data != null) {
                     deviceIp = data.getStringExtra("device_ip");
                     for (FileItem file : sendingFiles) {
@@ -473,6 +447,32 @@ public class FileListActivity extends AppCompatActivity {
                     }
                 }
                 break;
+            case REQUEST_SETTINGS:
+                if (resultCode == RESULT_OK) {
+                    Intent i = new Intent(this, FileReceiverService.class);
+                    stopService(i);
+                    startService(i);
+                }
+                break;
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.setting, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.setting_setting:
+                Intent i = new Intent(this, ConfigActivity.class);
+                i.putExtra("initialization", false);
+                startActivityForResult(i, REQUEST_SETTINGS);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 

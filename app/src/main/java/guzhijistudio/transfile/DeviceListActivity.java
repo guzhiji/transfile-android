@@ -14,9 +14,11 @@ import guzhijistudio.transfile.identity.UdpServer;
 import guzhijistudio.transfile.utils.Constants;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 
 public class DeviceListActivity extends AppCompatActivity {
 
@@ -105,6 +107,35 @@ public class DeviceListActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler();
     private final ArrayList<DeviceItem> devices = new ArrayList<>();
+    private final UdpServer.UdpServerListener usListener = new UdpServer.UdpServerListener() {
+        @Override
+        public void onEnter(String ip, String name) {
+            Log.i("udpserver", "enter:" + ip + "," + name);
+            final DeviceItem item = new DeviceItem(ip, name);
+            if (!devices.contains(item)) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        devices.add(item);
+                        deviceListView.setAdapter(new DevicesListAdaptor());
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onQuit(final String ip) {
+            Log.i("udpserver", "quit:" + ip);
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    devices.remove(new DeviceItem(ip, ""));
+                    deviceListView.setAdapter(new DevicesListAdaptor());
+                }
+            });
+        }
+    };
+    private ListView deviceListView;
     private UdpServer server;
 
     @Override
@@ -112,58 +143,17 @@ public class DeviceListActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_device_list);
 
-        final ListView deviceListView = findViewById(R.id.deviceListView);
+        if (getActionBar() != null) getActionBar().setDisplayHomeAsUpEnabled(true);
+
+        deviceListView = findViewById(R.id.deviceListView);
         deviceListView.setAdapter(new DevicesListAdaptor());
-
-        UdpServer.UdpServerListener usListener = new UdpServer.UdpServerListener() {
-            @Override
-            public void onEnter(String ip, String name) {
-                Log.i("udpserver", "enter:" + ip + "," + name);
-                final DeviceItem item = new DeviceItem(ip, name);
-                if (!devices.contains(item)) {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            devices.add(item);
-                            deviceListView.setAdapter(new DevicesListAdaptor());
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onQuit(final String ip) {
-                Log.i("udpserver", "quit:" + ip);
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        devices.remove(new DeviceItem(ip, ""));
-                        deviceListView.setAdapter(new DevicesListAdaptor());
-                    }
-                });
-            }
-        };
-
-        try {
-            Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
-            while (ifaces.hasMoreElements()) {
-                NetworkInterface iface = ifaces.nextElement();
-                if (!iface.isLoopback()) {
-                    Enumeration<InetAddress> addrs = iface.getInetAddresses();
-                    while (addrs.hasMoreElements()) {
-                        InetAddress addr = addrs.nextElement();
-                        Log.i("localaddr", iface.getDisplayName() + ":" + addr.getHostAddress());
-                    }
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
 
         try {
             SocketAddress addr = new InetSocketAddress("0.0.0.0", Constants.IDENTITY_SERVER_PORT);
-            InetAddress group = InetAddress.getByName(Constants.IDENTITY_GROUP_ADDR);
-            server = new UdpServer(addr, group, usListener);
+            String sGroupAddr = getSharedPreferences("config", MODE_PRIVATE)
+                    .getString("group_addr", Constants.IDENTITY_GROUP_ADDR);
+            InetAddress groupAddr = InetAddress.getByName(sGroupAddr);
+            server = new UdpServer(addr, groupAddr, usListener);
             server.start();
         } catch (UnknownHostException e) {
             e.printStackTrace();

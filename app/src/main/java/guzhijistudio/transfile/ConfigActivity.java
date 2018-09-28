@@ -24,6 +24,10 @@ public class ConfigActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_config);
+
+        if (getActionBar() != null)
+            getActionBar().setDisplayHomeAsUpEnabled(!getIntent().getBooleanExtra("initialization", false));
+
         SharedPreferences pref = getSharedPreferences("config", MODE_PRIVATE);
         configDeviceName = findViewById(R.id.configDeviceName);
         configGroupAddr = findViewById(R.id.configGroupAddr);
@@ -34,6 +38,7 @@ public class ConfigActivity extends AppCompatActivity {
         File defaultDir = Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DOWNLOADS);
         configDir.setText(pref.getString("dir", defaultDir.getAbsolutePath()));
+
         configSaveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -50,6 +55,7 @@ public class ConfigActivity extends AppCompatActivity {
                             pedit.putString("group_addr", configGroupAddr.getText().toString());
                             pedit.putString("dir", configDir.getText().toString());
                             pedit.apply();
+                            setResult(RESULT_OK);
                             finish();
                         }
                     }
