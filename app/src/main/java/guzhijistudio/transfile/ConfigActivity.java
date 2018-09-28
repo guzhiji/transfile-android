@@ -1,9 +1,10 @@
 package guzhijistudio.transfile;
 
 import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -25,8 +26,8 @@ public class ConfigActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_config);
 
-        if (getActionBar() != null)
-            getActionBar().setDisplayHomeAsUpEnabled(!getIntent().getBooleanExtra("initialization", false));
+        if (getSupportActionBar() != null)
+            getSupportActionBar().setDisplayHomeAsUpEnabled(!getIntent().getBooleanExtra("initialization", false));
 
         SharedPreferences pref = getSharedPreferences("config", MODE_PRIVATE);
         configDeviceName = findViewById(R.id.configDeviceName);
@@ -161,6 +162,17 @@ public class ConfigActivity extends AppCompatActivity {
                 validateDir(onSuccess);
             }
         }).start();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                finish();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
 }
