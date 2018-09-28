@@ -8,6 +8,7 @@ import android.provider.MediaStore;
 public final class ContentUtil {
 
     public static String getPath(Context context, Uri uri) {
+        if (uri == null) return null;
         if ("content".equalsIgnoreCase(uri.getScheme())) {
             String[] projection = { MediaStore.MediaColumns.DATA };
             Cursor cursor;
