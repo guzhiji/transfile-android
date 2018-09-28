@@ -213,7 +213,6 @@ public class FileListActivity extends AppCompatActivity {
             }
         });
 
-        fileListView = findViewById(R.id.fileListView);
         if (savedInstanceState == null) {
             Intent intent = getIntent();
             if (Intent.ACTION_SEND.equals(intent.getAction())) {
@@ -227,18 +226,17 @@ public class FileListActivity extends AppCompatActivity {
             } else if (Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())) {
                 ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
                 Log.i("filesharing", uris.size() + "");
-                if (uris != null) {
-                    for (Uri uri : uris) {
-                        String path = ContentUtil.getPath(this, uri);
-                        if (path != null) {
-                            Log.i("filesharing", path);
-                            File file = new File(path);
-                            if (file.canRead()) sendingFiles.add(new FileItem(file));
-                        }
+                for (Uri uri : uris) {
+                    String path = ContentUtil.getPath(this, uri);
+                    if (path != null) {
+                        Log.i("filesharing", path);
+                        File file = new File(path);
+                        if (file.canRead()) sendingFiles.add(new FileItem(file));
                     }
                 }
             }
         }
+        fileListView = findViewById(R.id.fileListView);
         fileListView.setAdapter(new FileListAdaptor());
 
         IntentFilter fileReceiverIntentFilter = new IntentFilter(Constants.ACTION_FILE_RECEIVER);
