@@ -115,34 +115,39 @@ public class FileListActivity extends AppCompatActivity {
             view.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
-                    PopupMenu popup = new PopupMenu(FileListActivity.this, view);
-                    popup.getMenuInflater().inflate(R.menu.fileitem, popup.getMenu());
-                    MenuItem menuItemResend = popup.getMenu().findItem(R.id.fileitem_resend);
-                    menuItemResend.setVisible(mode == MODE_SEND && deviceIp != null && !file.isProgressing());
-                    popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                        @Override
-                        public boolean onMenuItemClick(MenuItem menuItem) {
-                            switch (menuItem.getItemId()) {
-                                case R.id.fileitem_resend:
-                                    Intent i = new Intent(FileListActivity.this, FileSenderService.class);
-                                    i.putExtra("device_ip", deviceIp);
-                                    i.putExtra("file_path", file.getFile().getAbsolutePath());
-                                    startService(i);
-                                    return true;
-                                case R.id.fileitem_remove:
-                                    switch (mode) {
-                                        case MODE_SEND: sendingFiles.remove(file); break;
-                                        case MODE_RECEIVE: receivedFiles.remove(file); break;
-                                    }
-                                    fileListView.setAdapter(new FileListAdaptor());
-                                    return true;
-                                default:
-                                    return false;
+                    if (!file.isProgressing()) {
+                        PopupMenu popup = new PopupMenu(FileListActivity.this, view);
+                        popup.getMenuInflater().inflate(R.menu.fileitem, popup.getMenu());
+                        MenuItem menuItemResend = popup.getMenu().findItem(R.id.fileitem_resend);
+                        menuItemResend.setVisible(mode == MODE_SEND && deviceIp != null);
+                        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                            @Override
+                            public boolean onMenuItemClick(MenuItem menuItem) {
+                                switch (menuItem.getItemId()) {
+                                    case R.id.fileitem_resend:
+                                        Intent i = new Intent(FileListActivity.this, FileSenderService.class);
+                                        i.putExtra("device_ip", deviceIp);
+                                        i.putExtra("file_path", file.getFile().getAbsolutePath());
+                                        startService(i);
+                                        return true;
+                                    case R.id.fileitem_remove:
+                                        if (!file.isProgressing()) {
+                                            switch (mode) {
+                                                case MODE_SEND: sendingFiles.remove(file); break;
+                                                case MODE_RECEIVE: receivedFiles.remove(file); break;
+                                            }
+                                            fileListView.setAdapter(new FileListAdaptor());
+                                        }
+                                        return true;
+                                    default:
+                                        return false;
+                                }
                             }
-                        }
-                    });
-                    popup.show();
-                    return true;
+                        });
+                        popup.show();
+                        return true;
+                    }
+                    return false;
                 }
             });
             return view;
