@@ -3,4 +3,7 @@
     <item
             android:id="@+id/fileitem_resend"
             android:title="重新发送" />
+    <item
+            android:id="@+id/fileitem_remove"
+            android:title="从列表移除" />
 </menu>
