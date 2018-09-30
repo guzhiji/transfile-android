@@ -2,8 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
             android:id="@+id/fileitem_resend"
-            android:title="重新发送" />
+            android:title="@string/button_resend" />
     <item
             android:id="@+id/fileitem_remove"
-            android:title="从列表移除" />
+            android:title="@string/button_remove_from_list" />
 </menu>

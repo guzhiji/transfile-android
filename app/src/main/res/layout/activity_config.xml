@@ -8,7 +8,7 @@
         tools:context=".ConfigActivity" android:orientation="vertical">
 
     <TextView
-            android:text="设备名称"
+            android:text="@string/config_field_device_name"
             android:labelFor="@id/configDeviceName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
@@ -20,7 +20,7 @@
             android:id="@+id/configDeviceName"/>
 
     <TextView
-            android:text="多播组地址"
+            android:text="@string/config_field_group_addr"
             android:labelFor="@id/configGroupAddr"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
@@ -33,7 +33,7 @@
             android:id="@+id/configGroupAddr" />
 
     <TextView
-            android:text="接收文件夹"
+            android:text="@string/config_field_receiving_dir"
             android:labelFor="@id/configDir"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <Button
-                android:text="确定"
+                android:text="@string/button_ok"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:id="@+id/configSaveButton"

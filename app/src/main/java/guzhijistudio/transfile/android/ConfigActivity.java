@@ -70,7 +70,7 @@ public class ConfigActivity extends AppCompatActivity {
             configGroupAddr.post(new Runnable() {
                 @Override
                 public void run() {
-                    configGroupAddr.setError("请输入多播组地址");
+                    configGroupAddr.setError(getString(R.string.config_empty_group_addr));
                     validationGroupAddr = false;
                 }
             });
@@ -81,10 +81,10 @@ public class ConfigActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         if (addr == null) {
-                            configGroupAddr.setError("多播组地址错误");
+                            configGroupAddr.setError(getString(R.string.config_invalid_group_addr));
                             validationGroupAddr = false;
                         } else if (!addr.isMulticastAddress()) {
-                            configGroupAddr.setError("IP地址不属于多播组");
+                            configGroupAddr.setError(getString(R.string.config_ip_not_multicast));
                             validationGroupAddr = false;
                         } else {
                             configGroupAddr.setError(null);
@@ -97,7 +97,7 @@ public class ConfigActivity extends AppCompatActivity {
                 configGroupAddr.post(new Runnable() {
                     @Override
                     public void run() {
-                        configGroupAddr.setError("多播组地址错误");
+                        configGroupAddr.setError(getString(R.string.config_invalid_group_addr));
                         validationGroupAddr = false;
                     }
                 });
@@ -111,10 +111,10 @@ public class ConfigActivity extends AppCompatActivity {
             public void run() {
                 int dnLen = configDeviceName.length();
                 if (dnLen < 1) {
-                    configDeviceName.setError("请输入唯一设备名称");
+                    configDeviceName.setError(getString(R.string.config_empty_device_name));
                     validationDeviceName = false;
                 } else if (dnLen > 32) {
-                    configDeviceName.setError("设备名称太长");
+                    configDeviceName.setError(getString(R.string.config_device_name_too_long));
                     validationDeviceName = false;
                 } else {
                     configDeviceName.setError(null);
@@ -130,18 +130,18 @@ public class ConfigActivity extends AppCompatActivity {
             @Override
             public void run() {
                 if (configDir.length() == 0) {
-                    configDir.setError("请输入接收文件夹");
+                    configDir.setError(getString(R.string.config_empty_dir));
                     validationDir = false;
                 } else {
                     File dir = new File(configDir.getText().toString());
                     if (!dir.exists()) {
-                        configDir.setError("接收文件夹不存在");
+                        configDir.setError(getString(R.string.config_dir_not_exist));
                         validationDir = false;
                     } else if (!dir.isDirectory()) {
-                        configDir.setError("接收文件夹必须为目录");
+                        configDir.setError(getString(R.string.config_path_not_dir));
                         validationDir = false;
                     } else if (!dir.canWrite()) {
-                        configDir.setError("接收文件夹不可写");
+                        configDir.setError(getString(R.string.config_dir_not_writable));
                         validationDir = false;
                     } else {
                         configDir.setError(null);

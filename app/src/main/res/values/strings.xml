@@ -1,3 +1,28 @@
 <resources>
     <string name="app_name">TransFile</string>
+    <string name="config_field_device_name">设备名称</string>
+    <string name="config_field_group_addr">多播组地址</string>
+    <string name="config_field_receiving_dir">接收文件夹</string>
+    <string name="config_empty_device_name">请输入唯一设备名称</string>
+    <string name="config_device_name_too_long">设备名称太长</string>
+    <string name="config_empty_group_addr">请输入多播组地址</string>
+    <string name="config_invalid_group_addr">多播组地址错误</string>
+    <string name="config_ip_not_multicast">IP地址不属于多播地址</string>
+    <string name="config_empty_dir">请输入接收文件夹</string>
+    <string name="config_dir_not_exist">接收文件夹不存在</string>
+    <string name="config_path_not_dir">接收文件夹必须为目录</string>
+    <string name="config_dir_not_writable">接收文件夹不可写</string>
+    <string name="main_config_title">请对本程序进行设置</string>
+    <string name="main_config_message">您还未设置本程序，请点击“设置”，否则将退出。</string>
+    <string name="main_file_sent">%s 已发送</string>
+    <string name="main_file_received">%s 已接收</string>
+    <string name="button_ok">确定</string>
+    <string name="button_exit">退出</string>
+    <string name="button_config">设置</string>
+    <string name="button_add_file">添加文件</string>
+    <string name="button_send_all">全部发送</string>
+    <string name="button_send_file">发送文件</string>
+    <string name="button_receive_file">接收文件</string>
+    <string name="button_resend">重新发送</string>
+    <string name="button_remove_from_list">从列表移除</string>
 </resources>

@@ -282,7 +282,7 @@ public class FileListActivity extends AppCompatActivity {
                                 break;
                             }
                         }
-                        Toast.makeText(getApplicationContext(), file.getName() + " received", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.main_file_received, file.getName()), Toast.LENGTH_SHORT).show();
                         break;
                     case Constants.FILE_RECEIVER_PROGRESS:
                         if (mode == MODE_RECEIVE) {
@@ -355,7 +355,7 @@ public class FileListActivity extends AppCompatActivity {
                                 break;
                             }
                         }
-                        Toast.makeText(getApplicationContext(), file.getName() + " sent", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.main_file_sent, file.getName()), Toast.LENGTH_SHORT).show();
                         break;
                     case Constants.FILE_SENDER_ERROR:
                         for (FileItem fileItem : sendingFiles) {
@@ -387,9 +387,9 @@ public class FileListActivity extends AppCompatActivity {
         SharedPreferences pref = getSharedPreferences("config", MODE_PRIVATE);
         if (!pref.contains("device_name")) {
             new AlertDialog.Builder(this)
-                    .setTitle("请对本程序进行设置")
-                    .setMessage("您还未设置本程序，请点击“设置”，否则将退出。")
-                    .setPositiveButton("设置", new DialogInterface.OnClickListener() {
+                    .setTitle(R.string.main_config_title)
+                    .setMessage(R.string.main_config_message)
+                    .setPositiveButton(R.string.button_config, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             Intent intent = new Intent(FileListActivity.this, ConfigActivity.class);
@@ -397,7 +397,7 @@ public class FileListActivity extends AppCompatActivity {
                             startActivityForResult(intent, REQUEST_SETTINGS);
                         }
                     })
-                    .setNegativeButton("退出", new DialogInterface.OnClickListener() {
+                    .setNegativeButton(R.string.button_exit, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             finish();

@@ -3,9 +3,9 @@
     <item
             android:id="@+id/navigation_send"
             android:icon="@drawable/ic_send_black_24dp"
-            android:title="发送文件"/>
+            android:title="@string/button_send_file"/>
     <item
             android:id="@+id/navigation_receive"
             android:icon="@drawable/ic_receive_black_24dp"
-            android:title="接收文件"/>
+            android:title="@string/button_receive_file"/>
 </menu>
