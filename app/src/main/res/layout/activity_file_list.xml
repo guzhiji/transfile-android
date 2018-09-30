@@ -25,13 +25,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/addFileButton"
-                android:layout_weight="1"/>
+                android:drawableLeft="@drawable/ic_addfile_black_24dp"
+                android:drawableStart="@drawable/ic_addfile_black_24dp"
+                android:layout_weight="1" />
 
         <Button
                 android:text="@string/button_send_all"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/sendAllButton"
+                android:drawableLeft="@drawable/ic_sendall_black_24dp"
+                android:drawableStart="@drawable/ic_sendall_black_24dp"
                 android:layout_weight="1"/>
 
     </LinearLayout>
