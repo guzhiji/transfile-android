@@ -172,8 +172,8 @@ public class FileListActivity extends AppCompatActivity {
                 case R.id.navigation_receive:
                     mode = MODE_RECEIVE;
                     fileListView.setAdapter(new FileListAdaptor());
-                    addFileButton.setVisibility(View.INVISIBLE);
-                    sendAllButton.setVisibility(View.INVISIBLE);
+                    addFileButton.setVisibility(View.GONE);
+                    sendAllButton.setVisibility(View.GONE);
                     return true;
             }
             return false;
